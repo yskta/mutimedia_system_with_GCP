@@ -1,12 +1,51 @@
 const express = require('express');
+const { Storage } = require('@google-cloud/storage');
+
 const app = express();
 
-app.get('/', (req, res) => {
-  res.send('Hello from App Engine!');
+const PORT = process.env.PORT || 8080;
+
+const storage = new Storage({
+  projectId: 'cse4265-2025-103550949'
 });
 
-// Listen to the App Engine-specified port, or 8080 otherwise
-const PORT = process.env.PORT || 8080;
+const bucketName = 'cse4265-2025-103550949.appspot.com';
+
+
+app.get('/', (req, res) => {
+  res.send(`
+    <h1>Hello from App Engine!</h1>
+    <h2>Video Streaming Test</h2>
+    <p><a href="/video/demo.mp4">Watch Demo Video</a></p>
+  `);
+});
+
+app.get('/video/:filename', async (req, res, next) => {
+  try {
+    const filename = req.params.filename;
+    const file = storage.bucket(bucketName).file(filename);
+    
+    const [exists] = await file.exists();
+    if (!exists) {
+      return res.status(404).send('Video not found');
+    }
+    
+    res.setHeader('Content-Type', 'video/mp4');
+    
+    const stream = file.createReadStream();
+    stream.pipe(res);
+    
+    stream.on('error', (err) => {
+      console.error('Streaming error:', err);
+      next(err);
+    });
+
+  } catch (error) {
+    console.error('Error:', error);
+    next(error);
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`Server listening on port ${PORT}...`);
 });
