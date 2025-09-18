@@ -16,7 +16,19 @@ app.get('/', (req, res) => {
   res.send(`
     <h1>Hello from App Engine!</h1>
     <h2>Video Streaming Test</h2>
-    <p><a href="/video/demo.mp4">Watch Demo Video</a></p>
+    <body>
+            <video width="800" height="600" controls preload="metadata">
+                <source src="/video/demo_h264.mp4" type="video/mp4">
+                Your browser does not support the video tag.
+            </video>
+      
+            <br><br>
+      
+            <video width="800" height="600" controls preload="metadata">
+                <source src="/video/demo_h265.mp4" type="video/mp4">
+                Your browser does not support the video tag.
+            </video>
+    </body>
   `);
 });
 
