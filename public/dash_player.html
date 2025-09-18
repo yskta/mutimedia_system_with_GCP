@@ -1,0 +1,23 @@
+<!doctype html>
+<html>
+    <head>
+        <title>Dash.js player</title>
+        <style>
+            video {
+                width: 640px;
+                height: 360px;
+            }
+        </style>
+    </head>
+    <body>
+        <div>
+            <video id="videoPlayer" controls autoplay></video>
+        </div>
+        <script src="./dash.all.min.js"></script>
+        <script>
+        var player, duration, started;
+        player = dashjs.MediaPlayer().create();
+        player.initialize(document.querySelector('#videoPlayer'), '/video/dash//big_buck_bunny.mpd', true);
+        </script>
+    </body>
+</html>
