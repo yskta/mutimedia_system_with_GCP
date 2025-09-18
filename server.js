@@ -85,15 +85,9 @@ app.get('/video/:foldername/:filename', async (req, res, next) => {
   }
 });
 
-// app.listen(PORT, () => {
-//   console.log(`Server listening on port ${PORT}...`);
-//   console.log(`access:http://localhost:8080/`)
-// });
-
 app.listen(PORT, () => {
   console.log(`Server listening on port ${PORT}...`);
   console.log(`Main page: http://localhost:${PORT}/`);
   console.log(`DASH player: http://localhost:${PORT}/dash-player`);
-
   console.log(`Direct dash_player HTML: http://localhost:${PORT}/dash_player.html`);
 });

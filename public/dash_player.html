@@ -13,11 +13,13 @@
         <div>
             <video id="videoPlayer" controls autoplay></video>
         </div>
-        <script src="./dash.all.min.js"></script>
+        <script src="https://cdn.dashjs.org/latest/dash.all.min.js"></script>
         <script>
         var player, duration, started;
-        player = dashjs.MediaPlayer().create();
-        player.initialize(document.querySelector('#videoPlayer'), '/video/dash/big_buck_bunny.mpd', true);
+        window.addEventListener('load', function() {
+            player = dashjs.MediaPlayer().create();
+            player.initialize(document.querySelector('#videoPlayer'), 'https://cse4265-2025-103550949.lm.r.appspot.com/video/dash/big_buck_bunny.mpd', true);
+        });
         </script>
     </body>
 </html>
