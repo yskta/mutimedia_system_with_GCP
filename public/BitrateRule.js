@@ -79,7 +79,8 @@ function BitrateRuleClass() {
             ? throughputHistory.reduce((a, b) => a + b) / throughputHistory.length 
             : tput;
         
-        const CRITICAL_BUFFER = 7.0;  // Below this: conservative (raised from 6.0)
+        const PANIC_BUFFER = 5.0;     // Panic mode
+        const LOW_BUFFER = 7.0;       // Conservative mode
         const MIN_SWITCH_INTERVAL = 10000;
         
         const currentTime = Date.now();
@@ -90,13 +91,17 @@ function BitrateRuleClass() {
         let switchReason = "maintain";
         let margin;
         
-        if (bufferLevel < CRITICAL_BUFFER) {
-            // CONSERVATIVE MODE: Buffer is low, be careful
-            margin = 0.85;  // Raised from 0.7 to use more bandwidth
+        if (bufferLevel < PANIC_BUFFER) {
+            // PANIC MODE: Very low buffer, avoid stall at all costs
+            margin = 0.6;
+            switchReason = "panic mode - avoiding stall";
+        } else if (bufferLevel < LOW_BUFFER) {
+            // CONSERVATIVE MODE: Low buffer, be careful
+            margin = 0.85;
             switchReason = "low buffer - conservative";
         } else {
             // AGGRESSIVE MODE: Buffer is healthy, maximize quality
-            margin = 0.95;  // Raised from 0.85 to use more bandwidth
+            margin = 0.95;
             switchReason = "healthy buffer - aggressive";
         }
         
@@ -107,16 +112,17 @@ function BitrateRuleClass() {
             }
         }
         
-        // Emergency: more aggressive buffer thresholds
-        if (bufferLevel < 4.0 && quality >= currentQuality && currentQuality > 0) {
-            quality = Math.max(0, currentQuality - 1);
-            switchReason = "emergency - forcing down";
-        }
-        
-        // Extra emergency: if buffer very low, go to minimum quality
-        if (bufferLevel < 2.0 && currentQuality > 0) {
-            quality = 0;
-            switchReason = "critical emergency - minimum quality";
+        // Panic mode: force immediate quality reduction
+        if (bufferLevel < PANIC_BUFFER) {
+            if (quality >= currentQuality && currentQuality > 0) {
+                quality = Math.min(quality, currentQuality - 1);
+                switchReason = "panic - forcing quality down";
+            }
+            // If buffer critically low, drop to minimum
+            if (bufferLevel < 3.0) {
+                quality = 0;
+                switchReason = "critical panic - minimum quality";
+            }
         }
         
         // prevent too frequent switches (but allow in emergency)
