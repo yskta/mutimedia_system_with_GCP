@@ -1,0 +1,169 @@
+<!doctype html>
+<html>
+    <head>
+        <title>Dash.js player with Custom ABR</title>
+        <style>
+            video {
+                width: 640px;
+                height: 360px;
+            }
+            #info {
+                margin-top: 20px;
+                font-family: monospace;
+            }
+            .metric {
+                margin: 5px 0;
+            }
+        </style>
+    </head>
+    <body>
+        <div>
+            <h2>Dash.js Player with Custom ABR Algorithm</h2>
+            <video id="videoPlayer" controls></video>
+            <div id="info">
+                <div class="metric">Buffer Level: <span id="bufferLevel">-</span></div>
+                <div class="metric">Current Bitrate: <span id="currentBitrate">-</span></div>
+                <div class="metric">Throughput: <span id="throughput">-</span></div>
+                <div class="metric">Switch Count: <span id="switchCount">0</span></div>
+            </div>
+        </div>
+        
+        <!-- Load dash.js first -->
+        <script src="https://cdn.dashjs.org/latest/dash.all.debug.js"></script>
+        
+        <!-- Load the custom ABR rule after dash.js -->
+        <script src="BitrateRule.js"></script>
+        
+        <script>
+        var player, duration, started;
+        var url = "https://dash.akamaized.net/envivio/EnvivioDash3/manifest.mpd";
+        var switchCount = 0;
+        var lastBitrate = -1;
+        
+        // Wait for dashjs to be ready
+        function initPlayer() {
+            // Create player
+            player = dashjs.MediaPlayer().create();
+            
+            // Configure player settings first
+            player.updateSettings({
+                streaming: {
+                    abr: {
+                        // Disable all default rules
+                        rules: {
+                            throughputRule: {
+                                active: false
+                            },
+                            bolaRule: {
+                                active: false
+                            },
+                            insufficientBufferRule: {
+                                active: false
+                            },
+                            switchHistoryRule: {
+                                active: false
+                            },
+                            droppedFramesRule: {
+                                active: false
+                            },
+                            abandonRequestsRule: {
+                                active: false
+                            }
+                        },
+                        // Set ABR strategy to use custom rules
+                        ABRStrategy: 'abrDynamic'
+                    },
+                    buffer: {
+                        // Target buffer set to 10s as mentioned in requirements
+                        bufferTimeDefault: 10,
+                        bufferTimeAtTopQuality: 10,
+                        bufferTimeAtTopQualityLongForm: 10,
+                        // Disable fast switching
+                        fastSwitchEnabled: false
+                    }
+                }
+            });
+            
+            // Register custom ABR rule
+            // Try the older API method
+            try {
+                player.addABRCustomRule('qualitySwitchRules', 'BitrateRule', BitrateRule);
+            } catch (e) {
+                console.log('Failed to add custom rule with addABRCustomRule:', e);
+                // Try alternative methods
+                try {
+                    if (player.registerCustomABRRule) {
+                        player.registerCustomABRRule('BitrateRule', BitrateRule);
+                    }
+                    if (player.addCustomABRRule) {
+                        player.addCustomABRRule('BitrateRule');
+                    }
+                } catch (e2) {
+                    console.log('Failed to add custom rule with alternative methods:', e2);
+                }
+            }
+            
+            // Initialize player
+            var video = document.querySelector("#videoPlayer");
+            player.initialize(video, url, true);
+            
+            // Set up monitoring
+            setInterval(updateMetrics, 1000);
+            
+            // Listen for quality changes
+            player.on(dashjs.MediaPlayer.events.QUALITY_CHANGE_REQUESTED, function(e) {
+                console.log('Quality change requested:', e);
+            });
+            
+            player.on(dashjs.MediaPlayer.events.QUALITY_CHANGE_RENDERED, function(e) {
+                console.log('Quality change rendered:', e);
+                if (e.newQuality !== e.oldQuality) {
+                    switchCount++;
+                    document.getElementById('switchCount').textContent = switchCount;
+                }
+            });
+        }
+        
+        function updateMetrics() {
+            if (player) {
+                try {
+                    // Update buffer level
+                    var dashMetrics = player.getDashMetrics();
+                    if (dashMetrics) {
+                        var bufferLevel = dashMetrics.getCurrentBufferLevel('video');
+                        document.getElementById('bufferLevel').textContent = 
+                            bufferLevel ? bufferLevel.toFixed(2) + 's' : '-';
+                    }
+                    
+                    // Update current bitrate
+                    if (player.getQualityFor && player.getBitrateInfoListFor) {
+                        var currentQuality = player.getQualityFor('video');
+                        var bitrateList = player.getBitrateInfoListFor('video');
+                        if (bitrateList && currentQuality >= 0 && currentQuality < bitrateList.length) {
+                            var bitrate = bitrateList[currentQuality].bitrate / 1000; // Convert to kbps
+                            document.getElementById('currentBitrate').textContent = bitrate.toFixed(0) + ' kbps';
+                        }
+                    }
+                    
+                    // Update throughput
+                    if (player.getAverageThroughput) {
+                        var throughput = player.getAverageThroughput('video');
+                        document.getElementById('throughput').textContent = 
+                            throughput ? throughput.toFixed(0) + ' kbps' : '-';
+                    }
+                } catch (e) {
+                    // Ignore errors during initialization
+                    console.debug('Metrics update error (likely during initialization):', e.message);
+                }
+            }
+        }
+        
+        // Initialize when page loads
+        if (document.readyState === 'complete') {
+            initPlayer();
+        } else {
+            window.addEventListener('load', initPlayer);
+        }
+        </script>
+    </body>
+</html>
