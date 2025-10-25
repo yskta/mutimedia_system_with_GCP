@@ -79,7 +79,7 @@ function BitrateRuleClass() {
             ? throughputHistory.reduce((a, b) => a + b) / throughputHistory.length 
             : tput;
         
-        const CRITICAL_BUFFER = 6.0;  // Below this: conservative
+        const CRITICAL_BUFFER = 7.0;  // Below this: conservative (raised from 6.0)
         const MIN_SWITCH_INTERVAL = 10000;
         
         const currentTime = Date.now();
@@ -92,11 +92,11 @@ function BitrateRuleClass() {
         
         if (bufferLevel < CRITICAL_BUFFER) {
             // CONSERVATIVE MODE: Buffer is low, be careful
-            margin = 0.7;
+            margin = 0.85;  // Raised from 0.7 to use more bandwidth
             switchReason = "low buffer - conservative";
         } else {
             // AGGRESSIVE MODE: Buffer is healthy, maximize quality
-            margin = 0.85;
+            margin = 0.95;  // Raised from 0.85 to use more bandwidth
             switchReason = "healthy buffer - aggressive";
         }
         
@@ -107,14 +107,21 @@ function BitrateRuleClass() {
             }
         }
         
-        if (bufferLevel < 3.0 && quality >= currentQuality && currentQuality > 0) {
+        // Emergency: more aggressive buffer thresholds
+        if (bufferLevel < 4.0 && quality >= currentQuality && currentQuality > 0) {
             quality = Math.max(0, currentQuality - 1);
             switchReason = "emergency - forcing down";
         }
         
-        // prevent too frequent switches
+        // Extra emergency: if buffer very low, go to minimum quality
+        if (bufferLevel < 2.0 && currentQuality > 0) {
+            quality = 0;
+            switchReason = "critical emergency - minimum quality";
+        }
+        
+        // prevent too frequent switches (but allow in emergency)
         if (timeSinceLastSwitch < MIN_SWITCH_INTERVAL && quality !== currentQuality) {
-            if (bufferLevel >= 3.0) {
+            if (bufferLevel >= 4.0) {
                 quality = currentQuality;
                 switchReason = "rate limited";
             }
@@ -141,7 +148,7 @@ function BitrateRuleClass() {
         const targetKbit = bitrateList[quality].bandwidth / 1000;
         const newRepresentation = abrController.getOptimalRepresentationForBitrate(rulesContext.getMediaInfo(), targetKbit, true);
 
-        switchRequest = SwitchRequest(context).create();
+        let switchRequest = SwitchRequest(context).create();
         switchRequest.representation = newRepresentation;
         switchRequest.reason = switchReason;
         switchRequest.priority = SwitchRequest.PRIORITY.STRONG;
