@@ -1,0 +1,63 @@
+<!doctype html>
+<html>
+    <head>
+        <title>Dash.js player</title>
+        <style>
+            video {
+                width: 640px;
+                height: 360px;
+            }
+        </style>
+    </head>
+    <body>
+        <div>
+            <video id="videoPlayer" controls></video>
+        </div>
+        <script src="https://cdn.dashjs.org/latest/dash.all.debug.js"></script>
+        <script>
+        var player, duration, started;
+        var url = "https://dash.akamaized.net/envivio/EnvivioDash3/manifest.mpd";
+        
+        player = dashjs.MediaPlayer().create();
+        
+        player.updateSettings({
+            streaming: {
+                abr: {
+                    rules: {
+                        throughputRule: {
+                            active: false
+                        },
+                        bolaRule: {
+                            active: true
+                        },
+                        insufficientBufferRule: {
+                            active: true
+                        },
+                        switchHistoryRule: {
+                            active: true
+                        },
+                        droppedFramesRule: {
+                            active: true
+                        },
+                        abandonRequestsRule: {
+                            active: true
+                        }
+                    },
+                    initialBitrate: {
+                        video: 1000
+                    },
+                    minBitrate: {
+                        video: 500
+                    }
+                },
+                buffer: {
+                    fastSwitchEnabled: false
+                }
+            }
+        });
+        
+        var video = document.querySelector("#videoPlayer");
+        player.initialize(video, url, true);
+        </script>
+    </body>
+</html>
