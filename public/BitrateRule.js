@@ -107,22 +107,19 @@ function BitrateRuleClass() {
             }
         }
         
-        // Emergency: if buffer < 3s and quality hasn't decreased, force down
         if (bufferLevel < 3.0 && quality >= currentQuality && currentQuality > 0) {
             quality = Math.max(0, currentQuality - 1);
             switchReason = "emergency - forcing down";
         }
         
-        // Rate limiting: prevent too frequent switches
+        // prevent too frequent switches
         if (timeSinceLastSwitch < MIN_SWITCH_INTERVAL && quality !== currentQuality) {
-            // Exception: allow immediate switch if buffer is very low
             if (bufferLevel >= 3.0) {
                 quality = currentQuality;
                 switchReason = "rate limited";
             }
         }
         
-        // Clamp quality
         quality = Math.max(0, Math.min(quality, bitrateList.length - 1));
         
         // Log decision
