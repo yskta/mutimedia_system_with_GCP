@@ -93,11 +93,11 @@ function BitrateRuleClass() {
         
         if (bufferLevel < PANIC_BUFFER) {
             // PANIC MODE: Very low buffer, avoid stall at all costs
-            margin = 0.6;
+            margin = 0.15;
             switchReason = "panic mode - avoiding stall";
         } else if (bufferLevel < LOW_BUFFER) {
             // CONSERVATIVE MODE: Low buffer, be careful
-            margin = 0.85;
+            margin = 0.60;
             switchReason = "low buffer - conservative";
         } else {
             // AGGRESSIVE MODE: Buffer is healthy, maximize quality
