@@ -4,3 +4,5 @@ node_modules/*
 
 public/video/dash/*
 public/video/*
+
+.DS_store
