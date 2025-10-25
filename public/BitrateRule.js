@@ -57,7 +57,6 @@ function BitrateRuleClass() {
         let metricsModel = MetricsModel(context).getInstance();
         var mediaType = rulesContext.getMediaInfo().type;
         var metrics = metricsModel.getMetricsFor(mediaType, true);
-
         // Get current throughput and buffer level
         let tput = player.getAverageThroughput(mediaType);
         let bufferLevel = player.getDashMetrics().getCurrentBufferLevel("video");
@@ -73,7 +72,7 @@ function BitrateRuleClass() {
             lastQuality = currentQuality;
         }
         
-        // Update throughput history
+        // Track throughput history
         if (tput > 0) {
             throughputHistory.push(tput);
             if (throughputHistory.length > HISTORY_SIZE) {
@@ -81,130 +80,62 @@ function BitrateRuleClass() {
             }
         }
         
-        // Calculate smoothed throughput (weighted average with recent values having more weight)
-        let smoothedThroughput = tput;
-        if (throughputHistory.length > 3) {
-            let weights = [];
-            let totalWeight = 0;
-            for (let i = 0; i < throughputHistory.length; i++) {
-                weights[i] = (i + 1) / throughputHistory.length;
-                totalWeight += weights[i];
-            }
-            smoothedThroughput = 0;
-            for (let i = 0; i < throughputHistory.length; i++) {
-                smoothedThroughput += (throughputHistory[i] * weights[i]) / totalWeight;
-            }
-        }
+        // Calculate average throughput
+        let avgThroughput = throughputHistory.length > 0 
+            ? throughputHistory.reduce((a, b) => a + b) / throughputHistory.length 
+            : tput;
         
-        // Define buffer thresholds
-        const BUFFER_CRITICAL = 2.0;  // Switch down immediately
-        const BUFFER_LOW = 4.0;       // Conservative switching
-        const BUFFER_SAFE = 6.0;      // Normal operation
-        const BUFFER_HIGH = 8.0;      // Can be more aggressive
+        const CRITICAL_BUFFER = 6.0;  // Below this: conservative
+        const MIN_SWITCH_INTERVAL = 10000;
         
-        // Define switching constraints
-        const MIN_SWITCH_INTERVAL = 10000; // 10 seconds in milliseconds
-        const THROUGHPUT_MARGIN = 0.85;    // Use 85% of measured throughput
-        const STARTUP_MARGIN = 0.75;      // More conservative during startup
-        
-        // Calculate time since last switch
         const currentTime = Date.now();
         const timeSinceLastSwitch = currentTime - lastSwitchTime;
-        const timeSinceStart = (currentTime - startTime) / 1000; // in seconds
+        const timeSinceStart = (currentTime - startTime) / 1000;
         
-        // Determine if we're in startup phase (first 30 seconds)
-        const isStartup = timeSinceStart < 30;
-        const margin = isStartup ? STARTUP_MARGIN : THROUGHPUT_MARGIN;
-        
-        // Default to current quality
         let quality = currentQuality;
-        let switchReason = "maintain current quality";
+        let switchReason = "maintain";
+        let margin;
         
-        // Safety check for invalid values
-        if (!bufferLevel || bufferLevel < 0 || !smoothedThroughput || smoothedThroughput < 0) {
-            console.log("Invalid metrics, maintaining current quality");
-            quality = currentQuality;
+        if (bufferLevel < CRITICAL_BUFFER) {
+            // CONSERVATIVE MODE: Buffer is low, be careful
+            margin = 0.7;
+            switchReason = "low buffer - conservative";
         } else {
-            // Critical buffer - switch down aggressively
-            if (bufferLevel < BUFFER_CRITICAL) {
-                // Find lowest quality that we can sustain
-                for (let i = 0; i < bitrateList.length; i++) {
-                    if (bitrateList[i].bandwidth / 1000 <= smoothedThroughput * 0.6) {
-                        quality = i;
-                    }
-                }
-                switchReason = "critical buffer level";
-            }
-            // Low buffer - conservative approach
-            else if (bufferLevel < BUFFER_LOW) {
-                // Only switch down if current bitrate exceeds available throughput
-                if (currentQuality > 0 && bitrateList[currentQuality].bandwidth / 1000 > smoothedThroughput * margin) {
-                    quality = currentQuality - 1;
-                    switchReason = "low buffer, insufficient throughput";
-                } else {
-                    quality = currentQuality;
-                }
-            }
-            // Safe buffer - normal operation
-            else if (bufferLevel < BUFFER_SAFE) {
-                // Can maintain or carefully increase
-                let targetBandwidth = smoothedThroughput * margin;
-                
-                // Find best quality within bandwidth budget
-                quality = 0;
-                for (let i = 0; i < bitrateList.length; i++) {
-                    if (bitrateList[i].bandwidth / 1000 <= targetBandwidth) {
-                        quality = i;
-                    }
-                }
-                
-                // Apply hysteresis to prevent oscillation
-                if (quality > currentQuality && quality - currentQuality > 1) {
-                    quality = currentQuality + 1; // Step up gradually
-                    switchReason = "safe buffer, stepping up";
-                } else if (quality < currentQuality && currentQuality - quality > 1) {
-                    quality = currentQuality - 1; // Step down gradually
-                    switchReason = "safe buffer, stepping down";
-                } else {
-                    switchReason = "safe buffer, optimal quality";
-                }
-            }
-            // High buffer - can be more aggressive
-            else {
-                let targetBandwidth = smoothedThroughput * margin;
-                
-                // Find highest sustainable quality
-                quality = 0;
-                for (let i = 0; i < bitrateList.length; i++) {
-                    if (bitrateList[i].bandwidth / 1000 <= targetBandwidth * 1.1) { // Slightly more aggressive
-                        quality = i;
-                    }
-                }
-                
-                // Can step up more aggressively with high buffer
-                if (quality > currentQuality) {
-                    switchReason = "high buffer, increasing quality";
-                } else if (quality < currentQuality) {
-                    // Still apply hysteresis when switching down
-                    quality = Math.max(quality, currentQuality - 1);
-                    switchReason = "high buffer, controlled decrease";
-                }
+            // AGGRESSIVE MODE: Buffer is healthy, maximize quality
+            margin = 0.85;
+            switchReason = "healthy buffer - aggressive";
+        }
+        
+        quality = 0;
+        for (let i = 0; i < bitrateList.length; i++) {
+            if (bitrateList[i].bandwidth / 1000 <= avgThroughput * margin) {
+                quality = i;
             }
         }
         
-        // Apply switch rate limiting (except for critical situations)
-        if (bufferLevel >= BUFFER_CRITICAL && timeSinceLastSwitch < MIN_SWITCH_INTERVAL && quality !== currentQuality) {
-            console.log(`Switch rate limit: only ${timeSinceLastSwitch}ms since last switch`);
-            quality = currentQuality;
-            switchReason = "rate limited";
+        // Emergency: if buffer < 3s and quality hasn't decreased, force down
+        if (bufferLevel < 3.0 && quality >= currentQuality && currentQuality > 0) {
+            quality = Math.max(0, currentQuality - 1);
+            switchReason = "emergency - forcing down";
         }
         
-        // Ensure quality is within valid range
+        // Rate limiting: prevent too frequent switches
+        if (timeSinceLastSwitch < MIN_SWITCH_INTERVAL && quality !== currentQuality) {
+            // Exception: allow immediate switch if buffer is very low
+            if (bufferLevel >= 3.0) {
+                quality = currentQuality;
+                switchReason = "rate limited";
+            }
+        }
+        
+        // Clamp quality
         quality = Math.max(0, Math.min(quality, bitrateList.length - 1));
         
         // Log decision
-        console.log(`Buffer: ${bufferLevel?.toFixed(2)}s, Throughput: ${smoothedThroughput?.toFixed(0)} kbps, ` +
-                   `Current: ${currentQuality}, Target: ${quality}, Reason: ${switchReason}`);
+        console.log(`Buffer: ${bufferLevel.toFixed(2)}s, ` +
+                   `Throughput: ${avgThroughput.toFixed(0)} kbps, ` +
+                   `Current: ${currentQuality}, Target: ${quality}, ` +
+                   `Reason: ${switchReason}`);
         
         // Update state if switching
         if (quality !== currentQuality) {
