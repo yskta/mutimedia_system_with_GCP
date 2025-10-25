@@ -41,8 +41,6 @@ function BitrateRuleClass() {
     let lastSwitchTime = 0;
     let switchCount = 0;
     let startTime = Date.now();
-    let lastQuality = -1;
-    let qualityHistory = [];
     let throughputHistory = [];
     const HISTORY_SIZE = 10;
 
@@ -67,10 +65,6 @@ function BitrateRuleClass() {
         const currentRep = rulesContext.getRepresentation();
         const currentQuality = bitrateList.findIndex(r => r.id === currentRep.id);
         
-        // Initialize lastQuality if first run
-        if (lastQuality === -1) {
-            lastQuality = currentQuality;
-        }
         
         // Track throughput history
         if (tput > 0) {
@@ -145,12 +139,6 @@ function BitrateRuleClass() {
             console.log(`Switch #${switchCount}, Rate: ${switchRate.toFixed(3)} switches/sec`);
         }
         
-        // Update quality history
-        qualityHistory.push(quality);
-        if (qualityHistory.length > HISTORY_SIZE) {
-            qualityHistory.shift();
-        }
-        lastQuality = quality;
 
         // Create switch request
         const targetKbit = bitrateList[quality].bandwidth / 1000;
