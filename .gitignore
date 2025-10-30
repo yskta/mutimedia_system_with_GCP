@@ -6,3 +6,10 @@ public/video/dash/*
 public/video/*
 
 .DS_store
+
+desktop-service/node_modules/*
+mobile-service/node_modules/*
+
+private.key
+certificate.crt
+certificate.csr

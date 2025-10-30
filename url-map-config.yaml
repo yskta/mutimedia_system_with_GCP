@@ -1,0 +1,27 @@
+creationTimestamp: '2025-10-30T09:05:20.394-07:00'
+defaultService: https://www.googleapis.com/compute/v1/projects/cse4265-2025-103550949/global/backendServices/desktop-backend
+fingerprint: r9_U9ACDaa0=
+id: 3862067400605053521
+kind: compute#urlMap
+name: video-cdn-map
+selfLink: https://www.googleapis.com/compute/v1/projects/cse4265-2025-103550949/global/urlMaps/video-cdn-map
+hostRules:
+- hosts:
+  - '*'
+  pathMatcher: path-matcher-1
+pathMatchers:
+- name: path-matcher-1
+  defaultService: https://www.googleapis.com/compute/v1/projects/cse4265-2025-103550949/global/backendServices/desktop-backend
+  routeRules:
+  - priority: 1
+    matchRules:
+    - headerMatches:
+      - headerName: Device-Type
+        exactMatch: mobile
+    service: https://www.googleapis.com/compute/v1/projects/cse4265-2025-103550949/global/backendServices/mobile-backend
+  - priority: 2
+    matchRules:
+    - headerMatches:
+      - headerName: Device-Type
+        exactMatch: desktop
+    service: https://www.googleapis.com/compute/v1/projects/cse4265-2025-103550949/global/backendServices/desktop-backend

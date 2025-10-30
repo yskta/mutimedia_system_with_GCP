@@ -1,0 +1,15 @@
+{
+  "name": "desktop-video-service",
+  "version": "1.0.0",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "@google-cloud/storage": "^7.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
