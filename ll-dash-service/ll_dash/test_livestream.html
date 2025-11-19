@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>LL-DASH Test</title>
+</head>
+<body>
+    <h1>LL-DASH Live Stream Test</h1>
+    <video id="videoPlayer" width="640" height="360" controls></video>
+
+    <h3>Player Info</h3>
+    <div id="info"></div>
+
+    <script src="https://cdn.dashjs.org/latest/dash.all.min.js"></script>
+    <script>
+        var player;
+        var url = 'http://localhost:8080/out.mpd';
+
+        window.addEventListener('load', function() {
+            player = dashjs.MediaPlayer().create();
+
+            player.updateSettings({
+                streaming: {
+                    delay: {
+                        liveDelay: 2
+                    },
+                    liveCatchup: {
+                        enabled: true
+                    }
+                }
+            });
+
+            player.initialize(document.querySelector('#videoPlayer'), url, true);
+
+            setInterval(updateInfo, 1000);
+        });
+
+        function updateInfo() {
+            if (!player) return;
+
+            var settings = player.getSettings();
+            var targetLatency = player.getTargetLiveDelay();
+            var currentLatency = player.getCurrentLiveLatency();
+            var playbackRate = document.querySelector('#videoPlayer').playbackRate;
+            var liveDelay = settings.streaming.delay.liveDelay;
+            var liveCatchupEnabled = settings.streaming.liveCatchup.enabled;
+
+            console.log('--- Player Status ---');
+            console.log(`Live Delay Setting: ${liveDelay}`);
+            console.log(`Live Catchup Enabled: ${liveCatchupEnabled}`);
+            console.log(`Target Latency: ${targetLatency ? targetLatency.toFixed(2) : 'N/A'}s`);
+            console.log(`Current Latency: ${currentLatency ? currentLatency.toFixed(2) : 'N/A'}s`);
+            console.log(`Playback Rate: ${playbackRate.toFixed(3)}`);
+
+            document.getElementById('info').innerHTML =
+                'Live Delay: ' + (liveDelay ? liveDelay.toFixed(2) : 'NaN') + 's<br>' +
+                'Catchup: ' + (liveCatchupEnabled !== null ? liveCatchupEnabled : 'Auto') + '<br>' +
+                'Target Latency: ' + (targetLatency ? targetLatency.toFixed(2) : 'N/A') + 's<br>' +
+                'Current Latency: ' + (currentLatency ? currentLatency.toFixed(2) : 'N/A') + 's<br>' +
+                'Playback Rate: ' + playbackRate.toFixed(3);
+        }
+    </script>
+</body>
+</html>
