@@ -9,6 +9,7 @@ public/video/*
 
 desktop-service/node_modules/*
 mobile-service/node_modules/*
+webrtc-signaling-service/node_modules/*
 
 private.key
 certificate.crt
